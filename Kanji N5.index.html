@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kanji Master: DJT Style (N5 Complete)</title>
+    <style>
+        :root {
+            --bg: #161616;
+            --text: #e0e0e0;
+            --dim: #666666;
+            --accent: #4a90e2;
+            --wrong: #ff4757;
+            --correct-bg: #1e3624;
+            --success: #2ed573;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: background-color 0.2s ease;
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 14px;
+            color: var(--dim);
+            text-align: right;
+            z-index: 10;
+        }
+        .stats-bar span { color: var(--text); font-weight: bold; }
+        .streak-text { color: var(--success) !important; }
+
+        /* Main Wrapper for Split Layout */
+        #main-wrapper {
+            display: flex;
+            flex-direction: row;
+            width: 95%;
+            max-width: 900px;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 120px;
+            margin-top: 40px;
+        }
+
+        /* Main Game Area */
+        #game-container {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 300px;
+        }
+        #level-badge {
+            color: var(--dim);
+            font-size: 14px;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+        
+        #hint-display {
+            min-height: 24px;
+            color: var(--dim);
+            font-size: 18px;
+            margin-bottom: -10px;
+            opacity: 0;
+            transition: opacity 0.2s, color 0.2s;
+        }
+        #hint-display.show { opacity: 1; }
+
+        #kanji-display {
+            font-size: clamp(80px, 15vw, 140px);
+            margin: 10px 0;
+            font-family: 'Yu Mincho', 'MS Mincho', serif;
+            transition: color 0.2s;
+            line-height: 1.2;
+        }
+        
+        /* Input Field */
+        #input-field {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--dim);
+            color: var(--text);
+            font-size: 32px;
+            padding: 5px 10px;
+            text-align: center;
+            outline: none;
+            width: 80%;
+            max-width: 250px;
+            transition: all 0.3s;
+            touch-action: manipulation;
+        }
+        #input-field:focus { border-bottom-color: var(--accent); }
+        #input-field:disabled { border-bottom-color: transparent; }
+
+        /* Info Panel (Always Visible) */
+        #info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+            min-width: 300px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        #info-meaning {
+            font-size: 24px;
+            color: var(--accent);
+            font-weight: bold;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+        }
+        #info-examples {
+            font-size: 16px;
+            color: #ddd;
+            text-align: left;
+            padding-left: 20px;
+            margin: 0;
+            line-height: 1.6;
+        }
+        #info-examples li { margin-bottom: 6px; }
+
+        /* Setup Area */
+        .setup-area {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 95%;
+            max-width: 600px;
+            background: rgba(34, 34, 34, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 20;
+        }
+        
+        .group-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            max-height: 120px;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .setup-area label { 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: 5px;
+            background: #333;
+            padding: 6px 12px;
+            border-radius: 5px;
+            font-size: 13px;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .setup-area label:hover { background: #444; }
+
+        .controls-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .btn {
+            background: #444;
+            color: var(--text);
+            border: none;
+            padding: 6px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #555; }
+        .btn.primary { background: var(--accent); font-weight: bold; }
+        .btn.primary:hover { background: #357abd; }
+
+        /* Scrollbar */
+        .group-container::-webkit-scrollbar { width: 6px; }
+        .group-container::-webkit-scrollbar-track { background: #222; border-radius: 4px; }
+        .group-container::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+
+        /* Responsive Mobile */
+        @media (max-width: 768px) {
+            #main-wrapper {
+                flex-direction: column;
+                gap: 20px;
+                margin-top: 60px;
+            }
+            #info-panel { width: 100%; }
+            #kanji-display { font-size: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="stats-bar">
+    <div>แม่นยำ: <span id="score">0</span> / <span id="total">0</span></div>
+    <div>คอมโบ: <span id="streak" class="streak-text">0</span></div>
+</div>
+
+<div id="main-wrapper">
+    <div id="game-container">
+        <div id="level-badge">JLPT N5</div>
+        <div id="hint-display">hiragana</div>
+        <div id="kanji-display">...</div>
+        <input type="text" id="input-field" autocomplete="off" autofocus spellcheck="false" placeholder="พิมพ์โรมาจิ">
+    </div>
+    
+    <div id="info-panel">
+        <div id="info-meaning">ความหมาย</div>
+        <ul id="info-examples"></ul>
+    </div>
+</div>
+
+<div class="setup-area">
+    <div class="group-container" id="group-selectors"></div>
+    <div class="controls-row">
+        <label style="background: transparent;"><input type="checkbox" id="check-hint" onchange="toggleHint()"> คำใบ้</label>
+        <button class="btn" onclick="toggleAllGroups(true)">เลือกทั้งหมด</button>
+        <button class="btn" onclick="toggleAllGroups(false)">เอาออกทั้งหมด</button>
+        <button class="btn primary" onclick="initGame()">เริ่มฝึก / สุ่มใหม่</button>
+    </div>
+</div>
+
+<script>
+    // แก้ไขคำอ่านที่สั้นเกินไปออก เช่น yo จาก 四, mit จาก 三, mut จาก 六, yat จาก 八
+    const rawN5 = "一:ichi,itsu,hito:หนึ่ง:一つ (hitotsu) หนึ่งสิ่ง,一月 (ichigatsu) เดือนมกราคม|二:ni,futa:สอง:二人 (futari) สองคน,二月 (nigatsu) เดือนกุมภาพันธ์|三:san,mitsu:สาม:三日 (mikka) วันที่สาม,三月 (sangatsu) เดือนมีนาคม|四:shi,yon:สี่:四人 (yonin) สี่คน,四月 (shigatsu) เดือนเมษายน|五:go,itsu:ห้า:五つ (itsutsu) ห้าสิ่ง,五円 (goen) ห้าเยน|六:roku,mutsu:หก:六日 (muika) วันที่หก,六百 (roppyaku) หกร้อย|七:shichi,nana:เจ็ด:七人 (nananin) เจ็ดคน,七時 (shichiji) เจ็ดโมง|八:hachi,yatsu:แปด:八日 (youka) วันที่แปด,八百 (happyaku) แปดร้อย|九:kyuu,ku,kokono:เก้า:九日 (kokonoka) วันที่เก้า,九時 (kuji) เก้าโมง|十:juu,too:สิบ:十日 (tooka) วันที่สิบ,十分 (jippun) สิบนาที|百:hyaku:ร้อย:三百 (sanbyaku) สามร้อย,八百 (happyaku) แปดร้อย|千:sen,zen:พัน:三千 (sanzen) สามพัน,八千 (hassen) แปดพัน|万:man,ban:หมื่น:一万 (ichiman) หนึ่งหมื่น,万歳 (banzai) ไชโย|父:chichi,tou:พ่อ:お父さん (otousan) คุณพ่อ,祖父 (sofu) ปู่/ตา|母:haha,kaa:แม่:お母さん (okaasan) คุณแม่,祖母 (sobo) ย่า/ยาย|友:tomo,yuu:เพื่อน:友達 (tomodachi) เพื่อน,親友 (shinyuu) เพื่อนสนิท|女:onna,jo:ผู้หญิง:女の子 (onnanoko) เด็กผู้หญิง,女性 (josei) เพศหญิง|男:otoko,dan:ผู้ชาย:男の子 (otokonoko) เด็กผู้ชาย,男性 (dansei) เพศชาย|人:hito,jin,nin:คน:あの人 (anohito) คนนั้น,日本人 (nihonjin) คนญี่ปุ่น|子:ko,shi:เด็ก:子供 (kodomo) เด็ก,女子 (joshi) เด็กผู้หญิง|日:hi,nichi,jitsu:วัน/พระอาทิตย์:毎日 (mainichi) ทุกวัน,日曜日 (nichiyoubi) วันอาทิตย์|月:tsuki,getsu,gatsu:เดือน/พระจันทร์:今月 (kongetsu) เดือนนี้,月曜日 (getsuyoubi) วันจันทร์|火:hi,ka:ไฟ:火曜日 (kayoubi) วันอังคาร,花火 (hanabi) ดอกไม้ไฟ|水:mizu,sui:น้ำ:水曜日 (suiyoubi) วันพุธ,水 (mizu) น้ำ|木:ki,moku:ต้นไม้:木曜日 (mokuyoubi) วันพฤหัสบดี,木 (ki) ต้นไม้|金:kane,kin:ทอง/เงิน:金曜日 (kinyoubi) วันศุกร์,お金 (okane) เงิน|土:tsuchi,do:ดิน:土曜日 (doyoubi) วันเสาร์,土地 (tochi) ที่ดิน|本:hon,moto:หนังสือ/ต้นกำเนิด:本 (hon) หนังสือ,日本 (nihon) ญี่ปุ่น|休:yasu,kyuu:พักผ่อน:休む (yasumu) พักผ่อน,休日 (kyuujitsu) วันหยุด|語:go:ภาษา:日本語 (nihongo) ภาษาญี่ปุ่น,英語 (eigo) ภาษาอังกฤษ|学:gaku,mana:เรียน:学校 (gakkou) โรงเรียน,学生 (gakusei) นักเรียน|校:kou:โรงเรียน:学校 (gakkou) โรงเรียน,高校 (koukou) โรงเรียนมัธยมปลาย|小:chii,shou:เล็ก:小さい (chiisai) เล็ก,小学校 (shougakkou) โรงเรียนประถม|中:naka,chuu:กลาง/ใน:中 (naka) ข้างใน,中国 (chuugoku) ประเทศจีน|大:oo,dai:ใหญ่:大きい (ookii) ใหญ่,大学 (daigaku) มหาวิทยาลัย|高:taka,kou:สูง/แพง:高い (takai) สูง/แพง,高校 (koukou) โรงเรียนมัธยมปลาย|来:ku,ki,ko,rai:มา:来る (kuru) มา,来年 (rainen) ปีหน้า|行:i,iku,kou:ไป:行く (iku) ไป,旅行 (ryokou) การเดินทาง|見:mi,ken:ดู/เห็น:見る (miru) ดู/มอง,見学 (kengaku) ทัศนศึกษา|聞:ki,bun:ฟัง/ได้ยิน:聞く (kiku) ฟัง/ถาม,新聞 (shinbun) หนังสือพิมพ์|食:ta,shoku:กิน:食べる (taberu) กิน,食事 (shokuji) มื้ออาหาร|飲:no,in:ดื่ม:飲む (nomu) ดื่ม,飲み物 (nomimono) เครื่องดื่ม|立:ta,ritsu:ยืน:立つ (tatsu) ยืน,国立 (kokuritsu) ของรัฐ|待:ma,tai:รอ:待つ (matsu) รอ,招待 (shoutai) การเชิญ|買:ka,bai:ซื้อ:買う (kau) ซื้อ,買い物 (kaimono) การซื้อของ|起:o,ki:ตื่น/เกิดขึ้น:起きる (okiru) ตื่น,早起き (hayaoki) ตื่นเช้า|寝:ne,shin:นอน:寝る (neru) นอน,昼寝 (hirune) นอนกลางวัน|働:hatara,dou:ทำงาน:働く (hataraku) ทำงาน,労働 (roudou) แรงงาน|読:yo,doku:อ่าน:読む (yomu) อ่าน,読書 (dokusho) การอ่านหนังสือ|書:ka,sho:เขียน:書く (kaku) เขียน,辞書 (jisho) พจนานุกรม|話:hana,hanashi,wa:พูด/เรื่องราว:話す (hanasu) พูด,電話 (denwa) โทรศัพท์|帰:kae,ki:กลับ:帰る (kaeru) กลับ,帰国 (kikoku) กลับประเทศ|会:a,kai:พบ/เจอ:会う (au) พบ,会社 (kaisha) บริษัท|車:kuruma,sha:รถ:車 (kuruma) รถยนต์,電車 (densha) รถไฟ|電:den:ไฟฟ้า:電気 (denki) ไฟฟ้า,電話 (denwa) โทรศัพท์|駅:eki:สถานีรถไฟ:駅 (eki) สถานี,駅前 (ekimae) หน้าสถานี|名:na,mei:ชื่อ:名前 (namae) ชื่อ,有名 (yuumei) มีชื่อเสียง|前:mae,zen:หน้า/ก่อน:前 (mae) ข้างหน้า,午前 (gozen) ช่วงเช้า|後:ato,ushi,go:หลัง/หลังจาก:後ろ (ushiro) ข้างหลัง,午後 (gogo) ช่วงบ่าย|左:hidari,sa:ซ้าย:左 (hidari) ซ้าย,左手 (hidarite) มือซ้าย|右:migi,uu,yuu:ขวา:右 (migi) ขวา,右手 (migite) มือขวา|上:ue,jou:บน:上 (ue) ข้างบน,上手 (jouzu) เก่ง|下:shita,ka,ge:ล่าง/ใต้:下 (shita) ข้างล่าง,地下鉄 (chikatetsu) รถไฟใต้ดิน|外:soto,gai:นอก:外 (soto) ข้างนอก,外国 (gaikoku) ต่างประเทศ|国:kuni,koku:ประเทศ:国 (kuni) ประเทศ,外国 (gaikoku) ต่างประเทศ|白:shiro,haku:สีขาว:白い (shiroi) สีขาว,白黒 (shirokuro) ขาวดำ|黒:kuro,koku:สีดำ:黒い (kuroi) สีดำ,黒猫 (kuroneko) แมวดำ|赤:aka,seki:สีแดง:赤い (akai) สีแดง,赤ちゃん (akachan) ทารก|青:ao,sei:สีฟ้า/น้ำเงิน:青い (aoi) สีฟ้า/น้ำเงิน,青年 (seinen) วัยรุ่น|円:en,maru:เยน/กลม:百円 (hyakuen) ร้อยเยน,円い (marui) กลม|年:toshi,nen:ปี:今年 (kotoshi) ปีนี้,来年 (rainen) ปีหน้า|何:nan,nani:อะไร:何 (nani) อะไร,何時 (nanji) กี่โมง|気:ki,ke:ความรู้สึก/อากาศ:元気 (genki) แข็งแรง/สบายดี,天気 (tenki) อากาศ|雨:ame,u:ฝน:雨 (ame) ฝน,大雨 (ooame) ฝนตกหนัก|山:yama,san:ภูเขา:山 (yama) ภูเขา,富士山 (fujisan) ภูเขาไฟฟูจิ|川:kawa,sen:แม่น้ำ:川 (kawa) แม่น้ำ,小川 (ogawa) ลำธาร|天:ten,ame:ฟ้า/สวรรค์:天気 (tenki) อากาศ,天国 (tengoku) สวรรค์|空:sora,kuu,a:ท้องฟ้า/ว่างเปล่า:空 (sora) ท้องฟ้า,空気 (kuuki) อากาศ(ที่หายใจ)|生:i,u,sei,shou:เกิด/มีชีวิต/ดิบ:生きる (ikiru) มีชีวิต,先生 (sensei) ครู|花:hana,ka:ดอกไม้:花 (hana) ดอกไม้,花火 (hanabi) ดอกไม้ไฟ|道:michi,dou:ถนน/ทาง:道 (michi) ถนน,水道 (suidou) ประปา|耳:mimi,ji:หู:耳 (mimi) หู,耳鼻科 (jibika) แผนกหูคอจมูก|手:te,shu:มือ:手 (te) มือ,手紙 (tegami) จดหมาย|足:ashi,ta,soku:เท้า/ขา/พอเพียง:足 (ashi) เท้า/ขา,足りる (tariru) เพียงพอ|目:me,moku:ตา:目 (me) ตา,目的 (mokuteki) จุดประสงค์|口:kuchi,kou:ปาก:口 (kuchi) ปาก,出口 (deguchi) ทางออก";
+    
+    let allKanji = [];
+    let currentList = [];
+    let currentKanji = null;
+    let score = 0, total = 0, streak = 0;
+    let hasMadeMistake = false;
+    let isTransitioning = false; // ป้องกันการพิมพ์ระหว่างสุ่มข้อใหม่
+
+    const display = document.getElementById('kanji-display');
+    const input = document.getElementById('input-field');
+    const badge = document.getElementById('level-badge');
+    const hintDisplay = document.getElementById('hint-display');
+
+    function toHiragana(romaji) {
+        let str = romaji;
+        const map = {
+            'kya':'きゃ','kyu':'きゅ','kyo':'きょ','sha':'しゃ','shu':'しゅ','sho':'しょ','cha':'ちゃ','chu':'ちゅ','cho':'ちょ','nya':'にゃ','nyu':'にゅ','nyo':'にょ','hya':'ひゃ','hyu':'ひゅ','hyo':'ひょ','mya':'みゃ','myu':'みゅ','myo':'みょ','rya':'りゃ','ryu':'りゅ','ryo':'りょ','gya':'ぎゃ','gyu':'ぎゅ','gyo':'ぎょ','ja':'じゃ','ju':'じゅ','jo':'じょ','bya':'びゃ','byu':'びゅ','byo':'びょ','pya':'ぴゃ','pyu':'ぴゅ','pyo':'ぴょ',
+            'ka':'か','ki':'き','ku':'く','ke':'け','ko':'こ','sa':'さ','shi':'し','su':'す','se':'せ','so':'そ','ta':'た','chi':'ち','tsu':'つ','te':'て','to':'と','na':'な','ni':'に','nu':'ぬ','ne':'ね','no':'の','ha':'は','hi':'ひ','fu':'ふ','he':'へ','ho':'ほ','ma':'ま','mi':'み','mu':'む','me':'め','mo':'も','ya':'や','yu':'ゆ','yo':'よ','ra':'ら','ri':'り','ru':'る','re':'れ','ro':'ろ','wa':'わ','wo':'を','nn':'ん',
+            'ga':'が','gi':'ぎ','gu':'ぐ','ge':'げ','go':'ご','za':'ざ','ji':'じ','zu':'ず','ze':'ぜ','zo':'ぞ','da':'だ','de':'で','do':'ど','ba':'ば','bi':'び','bu':'ぶ','be':'べ','bo':'ぼ','pa':'ぱ','pi':'ぴ','pu':'ぷ','pe':'ぺ','po':'ぽ',
+            'a':'あ','i':'い','u':'う','e':'え','o':'お','n':'ん'
+        };
+        const keys = Object.keys(map).sort((a, b) => b.length - a.length);
+        for (let key of keys) {
+            str = str.split(key).join(map[key]);
+        }
+        str = str.replace(/t$/g, 'っ'); 
+        return str;
+    }
+
+    function parseData() {
+        rawN5.split('|').forEach(item => {
+            const parts = item.split(':');
+            if (parts.length >= 2) {
+                const char = parts[0];
+                const ans = parts[1].split(',');
+                const meaning = parts[2] || "ยังไม่ได้เพิ่มคำแปล";
+                const examples = parts[3] ? parts[3].split(',') : [];
+                allKanji.push({ char, ans, meaning, examples });
+            }
+        });
+    }
+
+    function renderSetup() {
+        const container = document.getElementById('group-selectors');
+        container.innerHTML = '';
+        const numGroups = Math.ceil(allKanji.length / 10);
+        
+        for (let i = 0; i < numGroups; i++) {
+            let start = i * 10;
+            let end = Math.min(start + 10, allKanji.length) - 1;
+            let label = `เซ็ต ${i + 1} (${allKanji[start].char}-${allKanji[end].char})`;
+            let isChecked = i === 0 ? "checked" : "";
+            
+            container.innerHTML += `
+                <label>
+                    <input type="checkbox" class="group-cb" value="${i}" ${isChecked}>
+                    ${label}
+                </label>
+            `;
+        }
+    }
+
+    function toggleAllGroups(state) {
+        document.querySelectorAll('.group-cb').forEach(cb => {
+            cb.checked = state;
+        });
+    }
+
+    function initGame() {
+        currentList = [];
+        const checkboxes = document.querySelectorAll('.group-cb:checked');
+        
+        checkboxes.forEach(cb => {
+            let groupIdx = parseInt(cb.value);
+            let start = groupIdx * 10;
+            let end = start + 10;
+            currentList = currentList.concat(allKanji.slice(start, end));
+        });
+        
+        if(currentList.length === 0) {
+            display.innerText = '⚠️';
+            badge.innerText = 'N5';
+            hintDisplay.innerText = 'กรุณาเลือกอย่างน้อย 1 เซ็ต';
+            hintDisplay.classList.add('show');
+            return;
+        }
+        
+        input.disabled = false;
+        input.value = '';
+        
+        nextKanji();
+    }
+
+    function updateStats() {
+        document.getElementById('score').innerText = score;
+        document.getElementById('total').innerText = total;
+        document.getElementById('streak').innerText = streak;
+    }
+
+    function toggleHint() {
+        if(hasMadeMistake) return; 
+        const hintCheck = document.getElementById('check-hint').checked;
+        if(hintCheck) {
+            hintDisplay.classList.add('show');
+        } else {
+            hintDisplay.classList.remove('show');
+        }
+    }
+
+    function updateInfoPanel() {
+        document.getElementById('info-meaning').innerText = `${currentKanji.char} = ${currentKanji.meaning}`;
+        
+        const ul = document.getElementById('info-examples');
+        ul.innerHTML = '';
+        if(currentKanji.examples.length > 0) {
+            currentKanji.examples.forEach(ex => {
+                let li = document.createElement('li');
+                li.innerText = ex.trim();
+                ul.appendChild(li);
+            });
+        } else {
+            let li = document.createElement('li');
+            li.innerText = "- ยังไม่มีประโยคตัวอย่าง -";
+            ul.appendChild(li);
+        }
+    }
+
+    function nextKanji() {
+        if (currentList.length === 0) return;
+        currentKanji = currentList[Math.floor(Math.random() * currentList.length)];
+        
+        hasMadeMistake = false;
+        isTransitioning = false;
+        
+        display.innerText = currentKanji.char;
+        display.style.color = 'var(--text)';
+        
+        const kanaHints = currentKanji.ans.map(romaji => toHiragana(romaji));
+        hintDisplay.innerText = kanaHints.join(', ');
+        hintDisplay.style.color = 'var(--dim)';
+        toggleHint();
+        
+        // อัปเดตฝั่งขวา (คำแปลและประโยคตัวอย่าง) ให้แสดงทันที
+        updateInfoPanel();
+        
+        input.value = '';
+        input.disabled = false;
+        input.focus();
+    }
+
+    function triggerMistakeState() {
+        hasMadeMistake = true;
+        streak = 0;
+        total++;
+        updateStats();
+        
+        display.style.color = 'var(--wrong)';
+        
+        // โชว์เฉลยเต็มๆ เพื่อให้พิมพ์ตาม
+        hintDisplay.innerText = currentKanji.ans.join(', ') + " (" + currentKanji.ans.map(toHiragana).join(', ') + ")";
+        hintDisplay.style.color = 'var(--wrong)';
+        hintDisplay.classList.add('show');
+    }
+
+    input.addEventListener('input', () => {
+        if (isTransitioning) return;
+        const userInp = input.value.toLowerCase().trim();
+        if (!userInp) return;
+
+        // เช็คว่าตอบถูกแบบเป๊ะๆ หรือไม่
+        if (currentKanji && currentKanji.ans.includes(userInp)) {
+            isTransitioning = true;
+            input.disabled = true; // ล็อกช่องพิมพ์ชั่วคราวตอนที่กำลังกระพริบเปลี่ยนข้อ
+
+            if (!hasMadeMistake) {
+                score++; total++; streak++;
+            }
+            updateStats();
+
+            // Effect กระพริบสีเขียวเมื่อพิมพ์ถูกต้อง
+            display.style.color = 'var(--success)';
+            document.body.style.backgroundColor = 'var(--correct-bg)';
+            
+            // Auto Advance (เปลี่ยนข้ออัตโนมัติภายใน 0.3 วิ โดยไม่ต้องกด Enter)
+            setTimeout(() => { 
+                document.body.style.backgroundColor = 'var(--bg)';
+                nextKanji(); 
+            }, 300);
+            return;
+        }
+
+        const isPrefixValid = currentKanji.ans.some(ans => ans.startsWith(userInp));
+
+        if (!isPrefixValid && !hasMadeMistake) {
+            triggerMistakeState();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        // กดยอมแพ้เพื่อดูเฉลย (กรณีนึกไม่ออกแต่ยังไม่ได้พิมพ์ผิด)
+        if ((e.key === 'Enter' || e.key === ' ') && !isTransitioning) {
+            if (currentKanji && document.activeElement === input && !hasMadeMistake) {
+                e.preventDefault();
+                triggerMistakeState();
+            }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if(!isTransitioning && window.getSelection().toString() === "" && !e.target.closest('.setup-area')) {
+            input.focus();
+        }
+    });
+
+    parseData();
+    renderSetup();
+    initGame();
+</script>
+</body>
+</html>
